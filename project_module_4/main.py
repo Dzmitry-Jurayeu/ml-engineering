@@ -104,7 +104,7 @@ class AdminUser(User):
 @dataclass
 class Event:
     """
-    Класс для представления события.
+    Базовый класс для представления события.
 
     Attributes:
         event_id (int): Уникальный идентификатор события
@@ -121,7 +121,7 @@ class Event:
 @dataclass
 class ModelEvent(Event):
     """
-    Класс для представления события.
+    Класс для представления события запроса к модели.
 
     Attributes:
         event_id (int): Уникальный идентификатор события
@@ -172,7 +172,7 @@ class ModelEvent(Event):
 @dataclass
 class BalanceReplenishmentEvent(Event):
     """
-    Класс для представления события.
+    Класс для представления события пополнения баланса.
 
     Attributes:
         event_id (int): Уникальный идентификатор события
@@ -234,7 +234,7 @@ class Balance:
 @dataclass
 class Model:
     """
-    Класс для представления баланса пользователя.
+    Класс для представления модели.
 
     Attributes:
         task (str): Название модели
