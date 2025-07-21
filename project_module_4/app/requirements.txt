@@ -1,0 +1,10 @@
+SQLAlchemy==2.0.31
+transformers==4.53.2
+h5py==3.14.0
+wrapt==1.17.2
+protobuf==6.31.1
+torch==2.7.1
+torchvision==0.22.1
+torchaudio==2.7.1
+google==3.0.0
+bcrypt==4.3.0
