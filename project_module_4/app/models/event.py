@@ -1,35 +1,24 @@
-from dataclasses import dataclass
 from datetime import datetime
-from models.user import User
 from models.model import Model
+from typing import Optional, List, TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship
 
 
-@dataclass
-class Event:
+if TYPE_CHECKING:
+    from models.user import User
+
+
+class Event(SQLModel):
     """
     Базовый класс для представления события.
 
     Attributes:
         event_id (int): Уникальный идентификатор события
-        creator (User): Создатель события
     """
-    event_id: int
-    creator: User
-
-    @property
-    def title(self):
-        raise NotImplementedError("Subclass must define this as a class attribute")
-
-    def request(self):
-        raise NotImplementedError("Subclass must implement this abstract method")
-
-    def add_event(self) -> None:
-        """Добавляет событие в список событий пользователя."""
-        self.request()
+    event_id: Optional[int] = Field(default=None, primary_key=True)
 
 
-@dataclass
-class ModelEvent(Event):
+class ModelEvent(Event, table=True):
     """
     Класс для представления события запроса к модели.
 
@@ -42,46 +31,26 @@ class ModelEvent(Event):
         response (str): Результат предсказания модели
         amount (int): Стоимость события
     """
-    text: str
-    title: str = "Model request"
-    score: float = None
-    response: str = None
-    amount: int = 0
 
-    def __post_init__(self) -> None:
-        self._validate_title()
-        self._validate_text()
-        self.amount = len(self.text.split())
-        self._model = Model()
-        self._timestamp: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    event_id: Optional[int] = Field(
+        default=None,
+        primary_key=True,
+    )
+    creator_id: Optional[int] = Field(default=None, foreign_key="user.user_id")
 
-    def _validate_title(self) -> None:
-        """Проверяет длину названия события."""
-        if not 1 <= len(self.title) <= 30:
-            raise ValueError("Title must be between 1 and 30 characters")
-
-    def _validate_text(self) -> None:
-        """Проверяет длину описания события."""
-        if len(self.text) > 300:
-            raise ValueError("Text must not exceed 300 characters")
-
-    def request(self):
-        """Запись события предсказания модели"""
-        if self.amount <= self.creator.balance.balance_value:
-            score = self._model.predict(self.text)[0].get("score")
-            self.score = score
-            self.response = "Yes" if score > 0.5 else "No"
-            self.creator.events.append(self)
-            self.creator.balance.balance_value -= self.amount
-            self.creator.balance.last_update = datetime.now()
-        else:
-            self.response = "Insufficient funds."
-            self.creator.events.append(self)
-            raise ValueError("Insufficient funds. Top up your balance.")
+    creator: Optional['User'] = Relationship(
+        back_populates="model_events",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    text: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    title: str = Field(default="Model request", min_length=1, max_length=30)
+    score: Optional[float] = Field(default=None)
+    response: Optional[str] = Field(default=None)
+    amount: int = Field(default=0)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
-@dataclass
-class BalanceReplenishmentEvent(Event):
+class BalanceReplenishmentEvent(Event, table=True):
     """
     Класс для представления события пополнения баланса.
 
@@ -91,20 +60,17 @@ class BalanceReplenishmentEvent(Event):
         title (str): Название события
         amount (int): Сумма пополнения баланса
     """
-    title: str = "Balance operation"
-    amount: int = 0
 
-    def __post_init__(self) -> None:
-        self._validate_title()
-        self._timestamp: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    event_id: Optional[int] = Field(
+        default=None,
+        primary_key=True,
+    )
+    creator_id: Optional[int] = Field(default=None, foreign_key="user.user_id")
 
-    def _validate_title(self) -> None:
-        """Проверяет длину названия события."""
-        if not 1 <= len(self.title) <= 30:
-            raise ValueError("Title must be between 1 and 30 characters")
-
-    def request(self):
-        """Запись события пополнения баланса"""
-        self.creator.balance.balance_value += self.amount
-        self.creator.balance.last_update = datetime.now()
-        self.creator.events.append(self)
+    creator: Optional['User'] = Relationship(
+        back_populates="balance_events",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    title: str = Field(default="Balance operation", min_length=1, max_length=30)
+    amount: int = Field(default=0)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
