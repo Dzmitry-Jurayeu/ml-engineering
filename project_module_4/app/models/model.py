@@ -1,9 +1,8 @@
-from dataclasses import dataclass
-from transformers import pipeline
+from typing import Optional
+from sqlmodel import SQLModel, Field
 
 
-@dataclass
-class Model:
+class Model(SQLModel, table=True):
     """
     Класс для представления модели.
 
@@ -11,11 +10,6 @@ class Model:
         task (str): Название модели
         model_name (str): Наименование модели
     """
-    task: str = "text-classification"
-    model_name: str = "unitary/toxic-bert"
-
-    def __post_init__(self) -> None:
-        self.model = pipeline(self.task, model=self.model_name)
-
-    def predict(self, text) -> list:
-        return self.model(text)
+    model_id: Optional[int] = Field(default=None, primary_key=True)
+    task: Optional[str] = Field(default="text-classification")
+    model_name: Optional[str] = Field(default="unitary/toxic-bert")

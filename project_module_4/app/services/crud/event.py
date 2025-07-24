@@ -16,7 +16,7 @@ def get_event_by_id(id: int, session) -> Optional[Event]:
     return None
 
 
-def update_model_event(event: ModelEvent, session) -> Event:
+def update_model_event(event: ModelEvent, session, model) -> Event:
     balance = session.get(Balance, event.creator_id)
     cost = len(event.text.split())
     if balance.balance_value < cost:
@@ -25,8 +25,7 @@ def update_model_event(event: ModelEvent, session) -> Event:
             "amount": cost
         }
     else:
-        model = Model()
-        score = model.predict(event.text)[0].get("score")
+        score = model(event.text)[0].get("score")
         event_data = {
             "score": score,
             "response": "Yes" if score > 0.5 else "No",
