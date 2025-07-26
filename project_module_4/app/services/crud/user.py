@@ -32,11 +32,12 @@ def create_user(new_user: User, session) -> None:
     session.commit()
     session.refresh(new_user)
 
-def get_user_history(requestor: User, user: User, session):
+def get_user_history(requestor: User, session):
     if requestor.is_admin:
         model_events = session.query(ModelEvent).all()
         balance_events = session.query(BalanceReplenishmentEvent).all()
     else:
-        model_events = session.query(User).filter(User.user_id == user.user_id).all()
-        balance_events = session.query(User).filter(User.user_id == user.user_id).all()
-    return model_events, balance_events
+        model_events = session.query(ModelEvent).filter(ModelEvent.creator_id == requestor.user_id).all()
+        balance_events = session.query(BalanceReplenishmentEvent).filter(BalanceReplenishmentEvent.creator_id == requestor.user_id).all()
+    sorted_user_history = sorted(model_events + balance_events, key=lambda x: x.timestamp)
+    return sorted_user_history

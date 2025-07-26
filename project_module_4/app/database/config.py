@@ -12,7 +12,11 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: Optional[str] = None
     POSTGRES_DB: Optional[str] = None
 
+    # Application settings
+    APP_NAME: Optional[str] = None
+    APP_DESCRIPTION: Optional[str] = None
     DEBUG: Optional[bool] = None
+    API_VERSION: Optional[str] = None
     
     @property
     def DATABASE_URL_asyncpg(self):

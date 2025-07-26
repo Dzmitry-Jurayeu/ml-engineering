@@ -3,7 +3,7 @@ from .config import get_settings
 from models.event import ModelEvent, BalanceReplenishmentEvent
 from models.user import User
 from models.model import Model
-from services.crud.user import create_user, get_all_users, get_user_history
+from services.crud.user import create_user, get_all_users, get_user_history, get_user_by_email
 from services.crud.balance import balance_replenishment, balance_withdraw
 from services.crud.event import update_model_event
 from services.crud.model import get_model_by_params, init_model, add_model
@@ -65,11 +65,12 @@ def init_demo_data():
     demo_common_user.balance_events.append(demo_balance_event)
     demo_common_user.model_events.append(demo_model_event)
     with Session(engine) as session:
-        add_model(demo_model, session)
-        model = get_model_by_params(session)
-        pipe = init_model(model)
-        create_user(demo_common_user, session)
-        balance_replenishment(demo_balance_event, session)
-        update_model_event(demo_model_event, session, pipe)
-        balance_withdraw(demo_model_event, session)
-        create_user(demo_admin_user, session)
+        if not get_user_by_email("demo_common@gmail.com", session):
+            add_model(demo_model, session)
+            model = get_model_by_params(session)
+            pipe = init_model(model)
+            create_user(demo_common_user, session)
+            balance_replenishment(demo_balance_event, session)
+            update_model_event(demo_model_event, session, pipe)
+            balance_withdraw(demo_model_event, session)
+            create_user(demo_admin_user, session)

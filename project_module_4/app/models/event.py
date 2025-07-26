@@ -34,7 +34,7 @@ class ModelEvent(Event, table=True):
 
     event_id: Optional[int] = Field(
         default=None,
-        primary_key=True,
+        primary_key=True
     )
     creator_id: Optional[int] = Field(default=None, foreign_key="user.user_id")
 

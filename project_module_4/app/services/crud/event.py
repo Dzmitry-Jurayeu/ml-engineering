@@ -1,27 +1,45 @@
-from models.event import Event, ModelEvent
 from models.balance import Balance
-from typing import List, Optional
+from typing import List, Optional, Union
 from models.model import Model
+from models.event import ModelEvent, BalanceReplenishmentEvent
 from services.crud.balance import balance_withdraw
 
 
-def get_all_events(session) -> List[Event]:
-    return session.query(Event).all()
+def get_all_events(session) -> List[Union[ModelEvent, BalanceReplenishmentEvent]]:
+    model_events = session.query(ModelEvent).all()
+    balance_events = session.query(BalanceReplenishmentEvent).all()
+    sorted_user_history = sorted(model_events + balance_events, key=lambda x: x.timestamp)
+    return sorted_user_history
 
 
-def get_event_by_id(id: int, session) -> Optional[Event]:
-    event = session.get(Event, id)
+def get_all_balance_events(session) -> List[BalanceReplenishmentEvent]:
+    return session.query(BalanceReplenishmentEvent).all()
+
+
+def get_all_model_events(session) -> List[ModelEvent]:
+    return session.query(ModelEvent).all()
+
+
+def get_balance_event_by_id(id: int, session) -> Optional[BalanceReplenishmentEvent]:
+    event = session.get(BalanceReplenishmentEvent, id)
     if event:
         return event
     return None
 
 
-def update_model_event(event: ModelEvent, session, model) -> Event:
+def get_model_event_by_id(id: int, session) -> Optional[ModelEvent]:
+    event = session.get(ModelEvent, id)
+    if event:
+        return event
+    return None
+
+
+def update_model_event(event: ModelEvent, session, model) -> ModelEvent:
     balance = session.get(Balance, event.creator_id)
     cost = len(event.text.split())
     if balance.balance_value < cost:
         event_data = {
-            "response": "Insufficient funds.",
+            "response": f"Insufficient funds. You need {cost} credits.",
             "amount": cost
         }
     else:
@@ -31,9 +49,11 @@ def update_model_event(event: ModelEvent, session, model) -> Event:
             "response": "Yes" if score > 0.5 else "No",
             "amount": cost
         }
-        balance_withdraw(event, session)
     for key, value in event_data.items():
         setattr(event, key, value)
+
+    if balance.balance_value >= cost:
+        balance_withdraw(event, session)
 
     session.add(event)
     session.commit()
@@ -41,19 +61,38 @@ def update_model_event(event: ModelEvent, session, model) -> Event:
     return event
 
 
-def create_event(new_event: Event, session) -> None:
+def create_model_event(new_event: ModelEvent, session) -> None:
     session.add(new_event)
     session.commit()
     session.refresh(new_event)
+    return new_event
+
+
+def create_balance_event(new_event: BalanceReplenishmentEvent, session) -> None:
+    session.add(new_event)
+    session.commit()
+    session.refresh(new_event)
+    return new_event
 
 
 def delete_all_events(session) -> None:
-    session.query(Event).delete()
+    session.query(ModelEvent).delete()
+    session.query(BalanceReplenishmentEvent).delete()
     session.commit()
 
 
-def delete_events_by_id(id: int, session) -> None:
-    event = session.get(Event, id)
+def delete_model_events_by_id(id: int, session) -> None:
+    event = session.get(ModelEvent, id)
+    if event:
+        session.delete(event)
+        session.commit()
+        return
+
+    raise Exception("Event with supplied ID does not exist")
+
+
+def delete_balance_events_by_id(id: int, session) -> None:
+    event = session.get(BalanceReplenishmentEvent, id)
     if event:
         session.delete(event)
         session.commit()

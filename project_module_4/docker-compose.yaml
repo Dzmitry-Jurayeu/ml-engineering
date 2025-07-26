@@ -1,23 +1,33 @@
 version: "3"
 services: 
   app:
-    build:
-      context: .
-      dockerfile: ./app/Dockerfile
+    build: ./app/
+    depends_on:
+      - database
     env_file:
       - ./app/.env
     volumes:
       - ./app:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - toxic-network
   web-proxy:
     image: nginx
-    build:
-      context: .
-      dockerfile: ./nginx/Dockerfile
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     ports:
       - "80:80"
       - "443:443"
+    networks:
+      - toxic-network
   rabbitmq:
     image: rabbitmq:management
     ports:
@@ -28,6 +38,8 @@ services:
     restart: on-failure
     env_file:
       - ./app/.env
+    networks:
+      - toxic-network
   database:
     image: postgres
     ports:
@@ -36,7 +48,14 @@ services:
       - postgres_volume:/var/lib/postgresql
     env_file:
       - ./app/.env
+    networks:
+      - toxic-network
 
 volumes:
   postgres_volume:
   rabbitmq_volume:
+
+networks:
+  toxic-network:
+    name: toxic-network
+    driver: bridge

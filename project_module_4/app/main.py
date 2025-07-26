@@ -40,7 +40,7 @@ if __name__ == '__main__':
         update_model_event(test_model_event, session, pipe)
         create_user(test_admin_user, session)
         logger.info("Admin user created.")
-        model_events_history, balance_events_history = get_user_history(test_admin_user, test_common_user, session)
+        user_history = get_user_history(test_admin_user, session)
         users = get_all_users(session)
 
     for user in users:
@@ -48,7 +48,5 @@ if __name__ == '__main__':
         for event in user.balance_events:
             logger.info(f"Event: {event}")
 
-    for enum, event in enumerate(model_events_history):
-        logger.info(f"Model history element {enum + 1}: {event}")
-    for enum, event in enumerate(balance_events_history):
-        logger.info(f"Balance history element {enum + 1}: {event}")
+    for enum, event in enumerate(user_history):
+        logger.info(f"History element {enum + 1}: {event}")
