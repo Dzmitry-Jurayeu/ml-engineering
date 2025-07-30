@@ -72,5 +72,4 @@ def init_demo_data():
             create_user(demo_common_user, session)
             balance_replenishment(demo_balance_event, session)
             update_model_event(demo_model_event, session, pipe)
-            balance_withdraw(demo_model_event, session)
             create_user(demo_admin_user, session)

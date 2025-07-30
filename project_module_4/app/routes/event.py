@@ -1,19 +1,24 @@
 from fastapi import APIRouter, Body, HTTPException, status, Depends
 from database.database import get_session
 from models.event import ModelEvent, BalanceReplenishmentEvent
-from typing import List, Union
+from routes.api_models import ModelEventIn, ModelEventOut, BalanceReplenishmentEventIn, BalanceReplenishmentEventOut, \
+    UserOut
+from typing import List, Union, Dict, Annotated
 from services.crud import event as EventService
 from services.crud import balance as BalanceService
 from services.crud import model as ModelService
+from services.crud import user as UserService
 from loguru import logger
+from routes.user import get_current_active_user
 
 event_router = APIRouter()
 
 
-@event_router.get("/", response_model=List[Union[ModelEvent, BalanceReplenishmentEvent]])
-async def retrieve_all_events(session=Depends(get_session)) -> List[Union[ModelEvent, BalanceReplenishmentEvent]]:
+@event_router.get("/", response_model=List[Union[ModelEventOut, BalanceReplenishmentEventOut]])
+async def retrieve_all_events(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                              session=Depends(get_session)) -> List[Union[ModelEventOut, BalanceReplenishmentEventOut]]:
     try:
-        events = EventService.get_all_events(session)
+        events = EventService.get_all_events(current_user, session)
         logger.info(f"Retrieved {len(events)} events")
         return events
     except Exception as e:
@@ -24,10 +29,11 @@ async def retrieve_all_events(session=Depends(get_session)) -> List[Union[ModelE
         )
 
 
-@event_router.get("/retrieve_all_balance_events", response_model=List[BalanceReplenishmentEvent])
-async def retrieve_all_balance_events(session=Depends(get_session)) -> List[BalanceReplenishmentEvent]:
+@event_router.get("/retrieve_all_balance_events", response_model=List[BalanceReplenishmentEventOut])
+async def retrieve_all_balance_events(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                                      session=Depends(get_session)) -> List[BalanceReplenishmentEventOut]:
     try:
-        events = EventService.get_all_balance_events(session)
+        events = EventService.get_all_balance_events(current_user, session)
         logger.info(f"Retrieved {len(events)} balance events")
         return events
     except Exception as e:
@@ -38,10 +44,11 @@ async def retrieve_all_balance_events(session=Depends(get_session)) -> List[Bala
         )
 
 
-@event_router.get("/retrieve_all_model_events", response_model=List[ModelEvent])
-async def retrieve_all_events(session=Depends(get_session)) -> List[ModelEvent]:
+@event_router.get("/retrieve_all_model_events", response_model=List[ModelEventOut])
+async def retrieve_all_model_events(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                                    session=Depends(get_session)) -> List[ModelEventOut]:
     try:
-        events = EventService.get_all_model_events(session)
+        events = EventService.get_all_model_events(current_user, session)
         logger.info(f"Retrieved {len(events)} model events")
         return events
     except Exception as e:
@@ -52,37 +59,93 @@ async def retrieve_all_events(session=Depends(get_session)) -> List[ModelEvent]:
         )
 
 
-@event_router.get("/balance_event/{balance_event_id}", response_model=BalanceReplenishmentEvent)
-async def retrieve_balance_event(balance_event_id: int, session=Depends(get_session)) -> BalanceReplenishmentEvent:
+@event_router.get("/balance_event/{balance_event_id}", response_model=BalanceReplenishmentEventOut)
+async def retrieve_balance_event(balance_event_id: int,
+                                 current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                                 session=Depends(get_session)) -> BalanceReplenishmentEventOut:
     try:
-        events = EventService.get_balance_event_by_id(balance_event_id, session)
-        return events
+        if current_user.is_admin:
+            events = EventService.get_balance_event_by_id(balance_event_id, session)
+            return events
+        else:
+            logger.error(f"Insufficient permissions. User: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Balance event with supplied ID does not exist")
 
 
-@event_router.get("/model_event/{model_event_id}", response_model=ModelEvent)
-async def retrieve_model_event(model_event_id: int, session=Depends(get_session)) -> ModelEvent:
+@event_router.get("/model_event/{model_event_id}", response_model=ModelEventOut)
+async def retrieve_model_event(model_event_id: int, current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                               session=Depends(get_session)) -> ModelEventOut:
     try:
-        events = EventService.get_model_event_by_id(model_event_id, session)
-        return events
+        if current_user.is_admin:
+            events = EventService.get_model_event_by_id(model_event_id, session)
+            return events
+        else:
+            logger.error(f"Insufficient permissions. User: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Balance event with supplied ID does not exist")
 
 
-@event_router.post("/new_balance_event")
-async def create_balance_event(body: BalanceReplenishmentEvent = Body(...), session=Depends(get_session)) -> dict:
-    balance_event = EventService.create_balance_event(body, session)
+@event_router.post("/new_my_balance_event")
+async def create_balance_event(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                               body: BalanceReplenishmentEventIn = Body(...),
+                               session=Depends(get_session)) -> Dict[str, str]:
+    balance_event = EventService.create_balance_event(
+        BalanceReplenishmentEvent(creator_id=current_user.user_id, **body.model_dump()), session)
     BalanceService.balance_replenishment(balance_event, session)
     return {"message": "Balance event created successfully. Balance replenished."}
 
 
+@event_router.post("/new_balance_event")
+async def create_balance_event(user_id: int,
+                               current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                               body: BalanceReplenishmentEventIn = Body(...),
+                               session=Depends(get_session)) -> Dict[str, str]:
+    if current_user.is_admin:
+        user = UserService.get_user_by_id(user_id, session)
+        if user is None:
+            logger.warning(f"Balance replenishment event attempt with non-existent user id: {user_id}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist")
+        balance_event = EventService.create_balance_event(
+            BalanceReplenishmentEvent(creator_id=user_id, **body.model_dump()), session)
+        BalanceService.balance_replenishment(balance_event, session)
+        return {"message": "Balance replenishment event created successfully. Balance replenished."}
+    else:
+        logger.error(f"Insufficient permissions. User: {current_user}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
+
+
 @event_router.post("/new_model_event")
-async def create_model_event(body: ModelEvent = Body(...), session=Depends(get_session),
-                             task: str = "text-classification", model_name: str = "unitary/toxic-bert") -> dict:
-    model_event = EventService.create_model_event(body, session)
+async def create_model_event(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                             body: ModelEventIn = Body(...),
+                             session=Depends(get_session),
+                             task: str = "text-classification",
+                             model_name: str = "unitary/toxic-bert") -> Dict[str, str | float | int]:
+    model_event = EventService.create_model_event(ModelEvent(creator_id=current_user.user_id, **body.model_dump()),
+                                                  session)
     model = ModelService.get_model_by_params(session, task, model_name)
     model = ModelService.init_model(model)
     result = EventService.update_model_event(model_event, session, model)
@@ -91,25 +154,59 @@ async def create_model_event(body: ModelEvent = Body(...), session=Depends(get_s
 
 
 @event_router.delete("/balance_event/{balance_event_id}")
-async def delete_balance_event(balance_event_id: int, session=Depends(get_session)) -> dict:
+async def delete_balance_event(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                               balance_event_id: int, session=Depends(get_session)) -> Dict[str, str]:
     try:
-        EventService.delete_balance_events_by_id(balance_event_id, session)
-        return {"message": "Balance event deleted successfully"}
+        if current_user.is_admin:
+            EventService.delete_balance_events_by_id(balance_event_id, session)
+            return {"message": "Balance event deleted successfully"}
+        else:
+            logger.error(f"Insufficient permissions. User: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Balance event with supplied ID does not exist")
 
 
 @event_router.delete("/model_event/{model_event_id}")
-async def delete_model_event(model_event_id: int, session=Depends(get_session)) -> dict:
+async def delete_model_event(current_user: Annotated[UserOut, Depends(get_current_active_user)], model_event_id: int,
+                             session=Depends(get_session)) -> Dict[str, str]:
     try:
-        EventService.delete_model_events_by_id(model_event_id, session)
-        return {"message": "Model event deleted successfully"}
+        if current_user.is_admin:
+            EventService.delete_model_events_by_id(model_event_id, session)
+            return {"message": "Model event deleted successfully"}
+        else:
+            logger.error(f"Insufficient permissions. User: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model event with supplied ID does not exist")
 
 
 @event_router.delete("/")
-async def delete_all_events(session=Depends(get_session)) -> dict:
-    EventService.delete_all_events(session)
-    return {"message": "Events deleted successfully"}
+async def delete_all_events(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                            session=Depends(get_session)) -> Dict[str, str]:
+    if current_user.is_admin:
+        EventService.delete_all_events(session)
+        return {"message": "Events deleted successfully"}
+    else:
+        logger.error(f"Insufficient permissions. User: {current_user}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )

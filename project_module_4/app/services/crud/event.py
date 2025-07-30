@@ -5,19 +5,33 @@ from models.event import ModelEvent, BalanceReplenishmentEvent
 from services.crud.balance import balance_withdraw
 
 
-def get_all_events(session) -> List[Union[ModelEvent, BalanceReplenishmentEvent]]:
-    model_events = session.query(ModelEvent).all()
-    balance_events = session.query(BalanceReplenishmentEvent).all()
+def get_all_events(user, session) -> List[Union[ModelEvent, BalanceReplenishmentEvent]]:
+    if user.is_admin:
+        model_events = session.query(ModelEvent).all()
+        balance_events = session.query(BalanceReplenishmentEvent).all()
+    else:
+        model_events = session.query(ModelEvent).filter(ModelEvent.user_id == user.user_id).all()
+        balance_events = session.query(BalanceReplenishmentEvent).filter(
+            BalanceReplenishmentEvent.user_id == user.user_id).all()
     sorted_user_history = sorted(model_events + balance_events, key=lambda x: x.timestamp)
     return sorted_user_history
 
 
-def get_all_balance_events(session) -> List[BalanceReplenishmentEvent]:
-    return session.query(BalanceReplenishmentEvent).all()
+def get_all_balance_events(user, session) -> List[BalanceReplenishmentEvent]:
+    if user.is_admin:
+        balance_events = session.query(BalanceReplenishmentEvent).all()
+    else:
+        balance_events = session.query(BalanceReplenishmentEvent).filter(
+            BalanceReplenishmentEvent.user_id == user.user_id).all()
+    return balance_events
 
 
-def get_all_model_events(session) -> List[ModelEvent]:
-    return session.query(ModelEvent).all()
+def get_all_model_events(user, session) -> List[ModelEvent]:
+    if user.is_admin:
+        model_events = session.query(ModelEvent).all()
+    else:
+        model_events = session.query(ModelEvent).filter(ModelEvent.user_id == user.user_id).all()
+    return model_events
 
 
 def get_balance_event_by_id(id: int, session) -> Optional[BalanceReplenishmentEvent]:

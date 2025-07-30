@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body, HTTPException, status, Depends
 from database.database import get_session
-from models.model import Model
+from routes.api_models import ModelIn, ModelOut
 from typing import List
 from services.crud import model as ModelService
 from loguru import logger
@@ -8,8 +8,8 @@ from loguru import logger
 model_router = APIRouter()
 
 
-@model_router.get("/", response_model=List[Model])
-async def retrieve_models(session=Depends(get_session)) -> List[Model]:
+@model_router.get("/", response_model=List[ModelOut])
+async def retrieve_models(session=Depends(get_session)) -> List[ModelOut]:
     try:
         models = ModelService.get_all_models(session)
         logger.info(f"Retrieved {len(models)} models")
@@ -22,8 +22,8 @@ async def retrieve_models(session=Depends(get_session)) -> List[Model]:
         )
 
 
-@model_router.get("/{model_id}", response_model=Model)
-async def retrieve_model_by_id(model_id: int, session=Depends(get_session)) -> Model:
+@model_router.get("/{model_id}", response_model=ModelOut)
+async def retrieve_model_by_id(model_id: int, session=Depends(get_session)) -> ModelOut:
     try:
         models = ModelService.get_model_by_id(model_id, session)
         return models
@@ -35,9 +35,9 @@ async def retrieve_model_by_id(model_id: int, session=Depends(get_session)) -> M
         )
 
 
-@model_router.get("/params/", response_model=Model)
+@model_router.get("/params/", response_model=ModelOut)
 async def retrieve_model_by_params(task: str = "text-classification", model_name: str = "unitary/toxic-bert",
-                                   session=Depends(get_session)) -> Model:
+                                   session=Depends(get_session)) -> ModelOut:
     try:
         model = ModelService.get_model_by_params(session, task, model_name)
         return model
@@ -49,7 +49,7 @@ async def retrieve_model_by_params(task: str = "text-classification", model_name
         )
 
 @model_router.post("/new_model")
-async def create_new_model(body: Model = Body(...), session=Depends(get_session)) -> dict:
+async def create_new_model(body: ModelIn = Body(...), session=Depends(get_session)) -> dict:
 
     if ModelService.get_model_by_params(session, body.task, body.model_name):
         logger.warning(f"Model with params:\n\ttask = {body.task}\n\tmodel_name = {body.model_name}\nalready exists")
