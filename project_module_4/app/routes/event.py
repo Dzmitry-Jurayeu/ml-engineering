@@ -8,8 +8,10 @@ from services.crud import event as EventService
 from services.crud import balance as BalanceService
 from services.crud import model as ModelService
 from services.crud import user as UserService
+from services.rm.rm import send_task
 from loguru import logger
 from routes.user import get_current_active_user
+import json
 
 event_router = APIRouter()
 
@@ -151,6 +153,33 @@ async def create_model_event(current_user: Annotated[UserOut, Depends(get_curren
     result = EventService.update_model_event(model_event, session, model)
     return {"message": "Model event created.", "score": result.score, "response": result.response,
             "amount": result.amount}
+
+@event_router.post("/send_task")
+async def send_task_to_queue(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                    body: ModelEventIn = Body(...),
+                    session=Depends(get_session),
+                    task: str = "text-classification",
+                    model_name: str = "unitary/toxic-bert") -> Dict[str, str]:
+    try:
+        model_event = EventService.create_model_event(ModelEvent(creator_id=current_user.user_id, **body.model_dump()),
+                                                      session)
+        balance = BalanceService.get_balance_by_user(current_user, session).balance_value
+        body = body.model_dump()
+        body["user_id"] = current_user.user_id
+        body["event_id"] = model_event.event_id
+        body["balance"] = balance
+        body["task"] = task
+        body["model_name"] = model_name
+        body = json.dumps(body)
+        send_task(body)
+        return {"message": "Task sent successfully!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=e)
+
+@event_router.post("/task_result")
+async def get_task_result(body: dict = Body(...), session=Depends(get_session),):
+    EventService.update_task_model_event(body, session)
+    return {"Result": "Data received and updated."}
 
 
 @event_router.delete("/balance_event/{balance_event_id}")
