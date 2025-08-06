@@ -222,3 +222,32 @@ async def get_user_history(current_user: Annotated[UserOut, Depends(get_current_
 async def signout(response: Response):
     response.delete_cookie(key="access_token")
     return {"message": "Signed out successfully"}
+
+
+@user_route.get(
+    "/me",
+    response_model=UserOut,
+    summary="Get current user",
+    response_description="Current user info"
+)
+async def get_me(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                 session=Depends(get_session)) -> UserOut:
+    """
+    Get list of all users.
+
+    Args:
+        session: Database session
+
+    Returns:
+        List[UserResponse]: List of users
+    """
+    try:
+        user = UserService.get_user_by_id(current_user.user_id, session)
+        logger.info(f"User retrieved")
+        return user
+    except Exception as e:
+        logger.error(f"Error retrieving users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving users"
+        )

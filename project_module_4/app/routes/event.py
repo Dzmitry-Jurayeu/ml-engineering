@@ -16,21 +16,6 @@ import json
 event_router = APIRouter()
 
 
-@event_router.get("/", response_model=List[Union[ModelEventOut, BalanceReplenishmentEventOut]])
-async def retrieve_all_events(current_user: Annotated[UserOut, Depends(get_current_active_user)],
-                              session=Depends(get_session)) -> List[Union[ModelEventOut, BalanceReplenishmentEventOut]]:
-    try:
-        events = EventService.get_all_events(current_user, session)
-        logger.info(f"Retrieved {len(events)} events")
-        return events
-    except Exception as e:
-        logger.error(f"Error retrieving events: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error retrieving events"
-        )
-
-
 @event_router.get("/retrieve_all_balance_events", response_model=List[BalanceReplenishmentEventOut])
 async def retrieve_all_balance_events(current_user: Annotated[UserOut, Depends(get_current_active_user)],
                                       session=Depends(get_session)) -> List[BalanceReplenishmentEventOut]:

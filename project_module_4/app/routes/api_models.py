@@ -20,8 +20,8 @@ class ModelEventOut(BaseModel):
     creator_id: int
     text: str
     title: str
-    score: float
-    response: str
+    score: float | None
+    response: str | None
     amount: int
     timestamp: datetime
 
