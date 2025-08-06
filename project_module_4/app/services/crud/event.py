@@ -10,9 +10,9 @@ def get_all_events(user, session) -> List[Union[ModelEvent, BalanceReplenishment
         model_events = session.query(ModelEvent).all()
         balance_events = session.query(BalanceReplenishmentEvent).all()
     else:
-        model_events = session.query(ModelEvent).filter(ModelEvent.user_id == user.user_id).all()
+        model_events = session.query(ModelEvent).filter(ModelEvent.creator_id == user.user_id).all()
         balance_events = session.query(BalanceReplenishmentEvent).filter(
-            BalanceReplenishmentEvent.user_id == user.user_id).all()
+            BalanceReplenishmentEvent.creator_id == user.user_id).all()
     sorted_user_history = sorted(model_events + balance_events, key=lambda x: x.timestamp)
     return sorted_user_history
 
@@ -22,7 +22,7 @@ def get_all_balance_events(user, session) -> List[BalanceReplenishmentEvent]:
         balance_events = session.query(BalanceReplenishmentEvent).all()
     else:
         balance_events = session.query(BalanceReplenishmentEvent).filter(
-            BalanceReplenishmentEvent.user_id == user.user_id).all()
+            BalanceReplenishmentEvent.creator_id == user.user_id).all()
     return balance_events
 
 
@@ -30,7 +30,7 @@ def get_all_model_events(user, session) -> List[ModelEvent]:
     if user.is_admin:
         model_events = session.query(ModelEvent).all()
     else:
-        model_events = session.query(ModelEvent).filter(ModelEvent.user_id == user.user_id).all()
+        model_events = session.query(ModelEvent).filter(ModelEvent.creator_id == user.user_id).all()
     return model_events
 
 

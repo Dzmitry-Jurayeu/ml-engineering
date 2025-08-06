@@ -4,11 +4,12 @@ from routes.api_models import ModelIn, ModelOut
 from typing import List
 from services.crud import model as ModelService
 from loguru import logger
+from models.model import Model
 
 model_router = APIRouter()
 
 
-@model_router.get("/", response_model=List[ModelOut])
+@model_router.get("/", summary="Get all models", response_model=List[ModelOut])
 async def retrieve_models(session=Depends(get_session)) -> List[ModelOut]:
     try:
         models = ModelService.get_all_models(session)
@@ -22,7 +23,7 @@ async def retrieve_models(session=Depends(get_session)) -> List[ModelOut]:
         )
 
 
-@model_router.get("/{model_id}", response_model=ModelOut)
+@model_router.get("/{model_id}", summary="Get model by ID", response_model=ModelOut)
 async def retrieve_model_by_id(model_id: int, session=Depends(get_session)) -> ModelOut:
     try:
         models = ModelService.get_model_by_id(model_id, session)
@@ -35,7 +36,7 @@ async def retrieve_model_by_id(model_id: int, session=Depends(get_session)) -> M
         )
 
 
-@model_router.get("/params/", response_model=ModelOut)
+@model_router.get("/params/", summary="Get model by params", response_model=ModelOut)
 async def retrieve_model_by_params(task: str = "text-classification", model_name: str = "unitary/toxic-bert",
                                    session=Depends(get_session)) -> ModelOut:
     try:
@@ -48,7 +49,7 @@ async def retrieve_model_by_params(task: str = "text-classification", model_name
             detail=f"Error retrieving model with params:\n\ttask = {task}\n\tmodel_name = {model_name}\n "
         )
 
-@model_router.post("/new_model")
+@model_router.post("/new_model", summary="Add new model",)
 async def create_new_model(body: ModelIn = Body(...), session=Depends(get_session)) -> dict:
 
     if ModelService.get_model_by_params(session, body.task, body.model_name):
@@ -57,5 +58,5 @@ async def create_new_model(body: ModelIn = Body(...), session=Depends(get_sessio
             status_code=status.HTTP_409_CONFLICT,
             detail="Model with this params already exists"
         )
-    ModelService.add_model(body, session)
-    return {"message": "Model with params:\n\ttask = {body.task}\n\tmodel_name = {body.model_name}\n added successfully."}
+    ModelService.add_model(Model(**body.model_dump()), session)
+    return {"message": f"Model with params:\n\ttask = {body.task}\n\tmodel_name = {body.model_name}\n added successfully."}

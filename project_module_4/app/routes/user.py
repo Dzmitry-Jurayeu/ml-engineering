@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Response, Cookie
 from database.database import get_session
 from models.user import User
 from routes.api_models import ModelEventOut, BalanceReplenishmentEventOut, UserSignUp, UserOut, UserSignIn, UserEmail, \
@@ -12,6 +12,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
+
+from setuptools.command.alias import alias
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
@@ -34,7 +36,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session=Depends(get_session)):
+async def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] = None, session=Depends(get_session)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -63,7 +65,7 @@ async def get_current_active_user(
 
 @user_route.post(
     '/signup',
-    response_model=Token,
+    response_model=Dict,
     status_code=status.HTTP_201_CREATED,
     summary="User Registration",
     description="Register a new user with email and password")
@@ -103,7 +105,9 @@ async def signup(data: UserSignUp, session=Depends(get_session)) -> Dict[str, st
 
 
 @user_route.post('/signin')
-async def signin(data: Annotated[OAuth2PasswordRequestForm, Depends()], session=Depends(get_session)) -> Token:
+async def signin(data: Annotated[OAuth2PasswordRequestForm, Depends()],
+                 response: Response,
+                 session=Depends(get_session)) -> Token:
     """
     Authenticate existing user.
 
@@ -130,6 +134,15 @@ async def signin(data: Annotated[OAuth2PasswordRequestForm, Depends()], session=
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+    logger.info(f"User signed in: {email}")
     return Token(access_token=access_token, token_type="bearer")
 
 
@@ -203,3 +216,9 @@ async def get_user_history(current_user: Annotated[UserOut, Depends(get_current_
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving user's history."
         )
+
+
+@user_route.post("/signout", summary="User Sign-out")
+async def signout(response: Response):
+    response.delete_cookie(key="access_token")
+    return {"message": "Signed out successfully"}

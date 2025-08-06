@@ -109,7 +109,7 @@ async def retrieve_model_event(model_event_id: int, current_user: Annotated[User
 
 
 @event_router.post("/new_my_balance_event")
-async def create_balance_event(current_user: Annotated[UserOut, Depends(get_current_active_user)],
+async def create_my_balance_event(current_user: Annotated[UserOut, Depends(get_current_active_user)],
                                body: BalanceReplenishmentEventIn = Body(...),
                                session=Depends(get_session)) -> Dict[str, str]:
     balance_event = EventService.create_balance_event(
