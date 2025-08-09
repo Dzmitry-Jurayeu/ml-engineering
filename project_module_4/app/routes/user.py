@@ -13,8 +13,6 @@ import jwt
 from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
 
-from setuptools.command.alias import alias
-
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
@@ -36,7 +34,8 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] = None, session=Depends(get_session)):
+async def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] = None,
+                           session=Depends(get_session)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -187,7 +186,7 @@ async def get_all_users(current_user: Annotated[UserOut, Depends(get_current_act
         )
 
 
-@user_route.post(
+@user_route.get(
     "/get_user_history",
     response_model=List[Union[ModelEventOut, BalanceReplenishmentEventOut]],
     summary="Get all user's events",

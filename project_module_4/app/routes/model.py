@@ -23,11 +23,21 @@ async def retrieve_models(session=Depends(get_session)) -> List[ModelOut]:
         )
 
 
-@model_router.get("/{model_id}", summary="Get model by ID", response_model=ModelOut)
+@model_router.get("/id/{model_id}", summary="Get model by ID", response_model=ModelOut)
 async def retrieve_model_by_id(model_id: int, session=Depends(get_session)) -> ModelOut:
     try:
         models = ModelService.get_model_by_id(model_id, session)
+        if models is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model with ID {model_id} not found"
+            )
         return models
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model with ID {model_id} not found"
+        )
     except Exception as e:
         logger.error(f"Error retrieving model with ID {model_id}: {str(e)}")
         raise HTTPException(
@@ -36,17 +46,27 @@ async def retrieve_model_by_id(model_id: int, session=Depends(get_session)) -> M
         )
 
 
-@model_router.get("/params/", summary="Get model by params", response_model=ModelOut)
+@model_router.get("/params", summary="Get model by params", response_model=ModelOut)
 async def retrieve_model_by_params(task: str = "text-classification", model_name: str = "unitary/toxic-bert",
                                    session=Depends(get_session)) -> ModelOut:
     try:
         model = ModelService.get_model_by_params(session, task, model_name)
+        if model is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model with params:\n\ttask = {task}\n\tmodel_name = {model_name},\nnot found"
+            )
         return model
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model with params:\n\ttask = {task}\n\tmodel_name = {model_name},\nnot found"
+        )
     except Exception as e:
         logger.error(f"Error retrieving model with params:\n\ttask = {task}\n\tmodel_name = {model_name}\n {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving model with params:\n\ttask = {task}\n\tmodel_name = {model_name}\n "
+            detail=f"Error retrieving model with params:\n\ttask = {task}\n\tmodel_name = {model_name}"
         )
 
 @model_router.post("/new_model", summary="Add new model",)

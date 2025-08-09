@@ -53,6 +53,11 @@ async def retrieve_balance_event(balance_event_id: int,
     try:
         if current_user.is_admin:
             events = EventService.get_balance_event_by_id(balance_event_id, session)
+            if events is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Balance event with ID {balance_event_id} not found"
+                )
             return events
         else:
             logger.error(f"Insufficient permissions. User: {current_user}")
@@ -61,10 +66,16 @@ async def retrieve_balance_event(balance_event_id: int,
                 detail="Insufficient permissions"
             )
     except HTTPException as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+        if e.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Balance event with ID {balance_event_id} not found"
+            )
+        elif e.status_code == 403:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Balance event with supplied ID does not exist")
@@ -76,6 +87,11 @@ async def retrieve_model_event(model_event_id: int, current_user: Annotated[User
     try:
         if current_user.is_admin:
             events = EventService.get_model_event_by_id(model_event_id, session)
+            if events is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Model event with ID {model_event_id} not found"
+                )
             return events
         else:
             logger.error(f"Insufficient permissions. User: {current_user}")
@@ -84,10 +100,16 @@ async def retrieve_model_event(model_event_id: int, current_user: Annotated[User
                 detail="Insufficient permissions"
             )
     except HTTPException as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+        if e.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model event with ID {model_event_id} not found"
+            )
+        elif e.status_code == 403:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Balance event with supplied ID does not exist")
@@ -97,6 +119,12 @@ async def retrieve_model_event(model_event_id: int, current_user: Annotated[User
 async def create_my_balance_event(current_user: Annotated[UserOut, Depends(get_current_active_user)],
                                body: BalanceReplenishmentEventIn = Body(...),
                                session=Depends(get_session)) -> Dict[str, str]:
+    if body.amount <= 0:
+        logger.error(f"Attempt to replenish balance by the amount: {body.amount}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The balance replenishment amount must be > 0"
+        )
     balance_event = EventService.create_balance_event(
         BalanceReplenishmentEvent(creator_id=current_user.user_id, **body.model_dump()), session)
     BalanceService.balance_replenishment(balance_event, session)
@@ -109,6 +137,12 @@ async def create_balance_event(user_id: int,
                                body: BalanceReplenishmentEventIn = Body(...),
                                session=Depends(get_session)) -> Dict[str, str]:
     if current_user.is_admin:
+        if body.amount <= 0:
+            logger.error(f"Attempt to replenish balance by the amount: {body.amount}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The balance replenishment amount must be > 0"
+            )
         user = UserService.get_user_by_id(user_id, session)
         if user is None:
             logger.warning(f"Balance replenishment event attempt with non-existent user id: {user_id}")
@@ -130,7 +164,7 @@ async def create_model_event(current_user: Annotated[UserOut, Depends(get_curren
                              body: ModelEventIn = Body(...),
                              session=Depends(get_session),
                              task: str = "text-classification",
-                             model_name: str = "unitary/toxic-bert") -> Dict[str, str | float | int]:
+                             model_name: str = "unitary/toxic-bert") -> Dict[str, str | float | int | None]:
     model_event = EventService.create_model_event(ModelEvent(creator_id=current_user.user_id, **body.model_dump()),
                                                   session)
     model = ModelService.get_model_by_params(session, task, model_name)

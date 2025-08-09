@@ -66,6 +66,7 @@ def update_task_model_event(data: dict, session) -> ModelEvent:
     balance = session.get(Balance, data.get("user_id"))
     event = get_model_event_by_id(data.get("event_id"), session)
     event_data = {k: v for k, v in data.items() if k in ["score", "response", "amount"]}
+    print(event)
 
     for key, value in event_data.items():
         setattr(event, key, value)
@@ -104,7 +105,7 @@ def delete_model_events_by_id(id: int, session) -> None:
     if event:
         session.delete(event)
         session.commit()
-        return
+        return None
 
     raise Exception("Event with supplied ID does not exist")
 
@@ -114,6 +115,6 @@ def delete_balance_events_by_id(id: int, session) -> None:
     if event:
         session.delete(event)
         session.commit()
-        return
+        return None
 
     raise Exception("Event with supplied ID does not exist")
