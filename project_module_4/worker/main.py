@@ -13,7 +13,7 @@ PIKA_PASSWORD = os.getenv("RABBITMQ_DEFAULT_PASS")
 API_ENDPOINT = os.getenv("API_ENDPOINT")
 
 connection_params = pika.ConnectionParameters(
-    host=RABBIT_HOST,  # Замените на адрес вашего RabbitMQ сервера
+    host=RABBIT_HOST,  # Адрес RabbitMQ сервера
     port=RABBIT_PORT,  # Порт по умолчанию для RabbitMQ
     virtual_host='/',  # Виртуальный хост (обычно '/')
     credentials=pika.PlainCredentials(

@@ -41,3 +41,25 @@ def get_user_history(requestor: User, session):
         balance_events = session.query(BalanceReplenishmentEvent).filter(BalanceReplenishmentEvent.creator_id == requestor.user_id).all()
     sorted_user_history = sorted(model_events + balance_events, key=lambda x: x.timestamp)
     return sorted_user_history
+
+def grant_admin_status(id:int, session):
+    user = session.query(User).filter(User.user_id == id).first()
+    if user.is_admin:
+        return {"message": f"The user with ID {id} is admin already."}
+    else:
+        user.is_admin = True
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return {"message": f"Admin status is provided to the user with ID {id}."}
+
+def revoke_admin_status(id:int, session):
+    user = session.query(User).filter(User.user_id == id).first()
+    if not user.is_admin:
+        return {"message": f"The user with ID {id} doesn't have admin status."}
+    else:
+        user.is_admin = False
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return {"message": f"Admin status is revoked for the user with ID {id}."}

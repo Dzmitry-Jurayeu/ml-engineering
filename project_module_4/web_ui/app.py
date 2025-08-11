@@ -60,7 +60,7 @@ if not token:
     # Форма Login
     with tab1:
         if cookies.get("access_token") == "":
-            st.write("Время жизни токена истекло. Авторизуйтесь снова.")
+            st.write("Срок действия сессии истек. Авторизуйтесь снова.")
         st.subheader("Вход")
         username = st.text_input("Email")
         password = st.text_input("Пароль", type="password")
@@ -88,11 +88,6 @@ if not token:
         st.subheader("Регистрация")
         new_email = st.text_input("Новый Email")
         new_password = st.text_input("Пароль", type="password", key="reg_pw")
-        # Новый чекбокс для админ-прав
-        is_admin = st.checkbox(
-            "Администратор",
-            help="Отметьте, если пользователь должен получить права администратора"
-        )
         if st.button("Зарегистрироваться"):
             try:
                 resp = requests.post(
@@ -100,7 +95,6 @@ if not token:
                     json={
                         "email": new_email,
                         "password": new_password,
-                        "is_admin": is_admin
                     }
                 )
                 resp.raise_for_status()
@@ -163,9 +157,11 @@ if is_admin_user:
         users_list = users_resp.json()
         # Собираем mapping email => id
         email_to_id = {u["email"]: u["user_id"] for u in users_list}
+        default_index = list(email_to_id.keys()).index(user_info.get("email"))
         sel_email = st.sidebar.selectbox(
             "Выберите пользователя для пополнения",
-            list(email_to_id.keys())
+            list(email_to_id.keys()),
+            index=default_index
         )
         target_user_id = email_to_id[sel_email]
     except Exception as e:
@@ -193,9 +189,61 @@ if st.sidebar.button("Пополнить баланс"):
             )
             recharge_resp.raise_for_status()
             st.sidebar.success("Баланс успешно пополнен")
-            st.rerun()
         except Exception as e:
             st.sidebar.error(f"Не удалось пополнить баланс: {e}")
+
+# 5. Управление правами администратора
+if is_admin_user:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Управление правами администратора")
+
+    try:
+        # Получаем список всех пользователей
+        users_resp = requests.get(
+            urljoin(base_url + "/", "api/users/get_all_users"),
+            cookies={"access_token": token}
+        )
+        users_resp.raise_for_status()
+        users_list = users_resp.json()
+
+        # Формируем маппинг email => user_id
+        email_to_id = {u["email"]: u["user_id"] for u in users_list if u.get("email") != user_info.get("email")}
+        sel_email = st.sidebar.selectbox(
+            "Выберите пользователя",
+            list(email_to_id.keys()),
+        )
+        target_user_id = email_to_id[sel_email]
+
+        # Выбор действия: выдать или отозвать права администратора
+        action = st.sidebar.radio(
+            "Действие",
+            ("Выдать права", "Отозвать права")
+        )
+
+        if st.sidebar.button("Применить"):
+            if action == "Выдать права":
+                endpoint = "api/users/grant_admin"
+                success_msg = "Права администратора выданы"
+            else:
+                endpoint = "api/users/revoke_admin"
+                success_msg = "Права администратора отозваны"
+
+            url = urljoin(base_url + "/", endpoint)
+            params = {"user_id": target_user_id}
+
+            try:
+                resp = requests.post(
+                    url,
+                    params=params,
+                    cookies={"access_token": token}
+                )
+                resp.raise_for_status()
+                st.sidebar.success(success_msg)
+            except Exception as e:
+                st.sidebar.error(f"Не удалось выполнить запрос: {e}")
+
+    except Exception as e:
+        st.sidebar.error(f"Не удалось загрузить список пользователей: {e}")
 
 tab_names = ["Баланс", "Модели", "Предсказания"]
 if is_admin_user:

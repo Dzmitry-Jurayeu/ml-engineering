@@ -250,3 +250,83 @@ async def get_me(current_user: Annotated[UserOut, Depends(get_current_active_use
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving users"
         )
+
+@user_route.post(
+    "/grant_admin",
+    response_model=Dict,
+    summary="Grant Admin status to user",
+)
+async def grant_admin(user_id: int,
+                      current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                      session=Depends(get_session)) -> Dict[str, str]:
+    """
+    Grant Admin status to user.
+
+    Args:
+        user_id: User ID
+
+    Returns:
+        Dict[str, str]
+    """
+    try:
+        if current_user.is_admin:
+            users = UserService.grant_admin_status(user_id, session)
+            logger.info(f"User {current_user.email} grant admin status to user with ID {user_id}.")
+            return users
+        else:
+            logger.error(f"Insufficient permissions. User: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
+    except Exception as e:
+        logger.error(f"Error grant admin status to users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error grant admin status to users"
+        )
+
+@user_route.post(
+    "/revoke_admin",
+    response_model=Dict,
+    summary="Revoke Admin status to user",
+)
+async def revoke_admin(user_id: int,
+                      current_user: Annotated[UserOut, Depends(get_current_active_user)],
+                      session=Depends(get_session)) -> Dict[str, str]:
+    """
+    Revoke Admin status to user.
+
+    Args:
+        user_id: User ID
+
+    Returns:
+        Dict[str, str]
+    """
+    try:
+        if current_user.is_admin:
+            users = UserService.revoke_admin_status(user_id, session)
+            logger.info(f"User {current_user.email} revoke admin status from user with ID {user_id}.")
+            return users
+        else:
+            logger.error(f"Insufficient permissions. User: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
+    except Exception as e:
+        logger.error(f"Error grant admin status to users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error grant admin status to users"
+        )
