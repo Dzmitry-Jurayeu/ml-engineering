@@ -1,0 +1,2 @@
+streamlit==1.52.1
+streamlit-cookies-manager==0.2.0
